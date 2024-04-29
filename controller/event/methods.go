@@ -15,6 +15,8 @@ type User struct {
 }
 
 func handleEventIndex(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	userId := r.URL.Query().Get("userId")
 	user := &User{
 		Id: userId,
@@ -37,8 +39,6 @@ func handleEventIndex(w http.ResponseWriter, r *http.Request) {
 	defer CONNECTIONS.RemoveClient(userId)
 
 	go simulateLiveData(ch, userId)
-
-	ctx := r.Context()
 
 	for {
 		select {

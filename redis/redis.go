@@ -19,3 +19,7 @@ func CreateRedisClient() {
 
 	client = redis.NewClient(opt)
 }
+
+// func SubscribeToRedis(id string, ch chan string) {
+// 	pubsub := client.Subscribe()
+// }
