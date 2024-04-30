@@ -1,45 +1,72 @@
 package sse
 
 import (
-	"fmt"
+	"context"
+	r "go-sse/redis"
+	"log"
 	"sync"
+
+	"github.com/redis/go-redis/v9"
 )
 
+type ConnectionDetails struct {
+	C  chan string
+	PS *redis.PubSub
+}
+
 type SSEConn struct {
-	M sync.Mutex
-	C map[string]chan string
+	M  sync.Mutex
+	CD map[string]ConnectionDetails
 }
 
 func NewSSECon() *SSEConn {
-	return &SSEConn{C: make(map[string]chan string)}
+	return &SSEConn{CD: make(map[string]ConnectionDetails)}
 }
 
-func (conn *SSEConn) AddClient(id string) *chan string {
+func (conn *SSEConn) AddClient(ctx context.Context, id string) *chan string {
 	var c chan string
 
 	conn.M.Lock()
 	defer conn.M.Unlock()
 
-	c, ok := conn.C[id]
-	if !ok {
+	c = conn.CD[id].C
+	if c == nil {
 		c = make(chan string)
-		conn.C[id] = c
+
+		cd := ConnectionDetails{
+			C:  c,
+			PS: r.CreatePubSubClient(ctx, id),
+		}
+
+		conn.CD[id] = cd
 	}
 
 	return &c
 }
 
-func (conn *SSEConn) RemoveClient(id string) {
-	fmt.Println("removing client..")
+func (conn *SSEConn) RemoveClient(ctx context.Context, id string) {
 	conn.M.Lock()
 	defer conn.M.Unlock()
 
-	chann, ok := conn.C[id]
+	cd, ok := conn.CD[id]
 	if !ok {
 		return
 	}
 
-	close(chann)
-	delete(conn.C, id)
-	fmt.Println("current list of clients..", conn.C)
+	if err := cd.PS.Unsubscribe(ctx); err != nil {
+		log.Fatal("failed to unsubscribe from pub sub channel")
+	}
+	if err := cd.PS.Close(); err != nil {
+		log.Fatal("failed to close pub sub channel")
+	}
+
+	close(cd.C)
+	delete(conn.CD, id)
+}
+
+func (conn *SSEConn) ListenOnChannel(id string) {
+	client := conn.CD[id]
+	for msg := range client.PS.Channel() {
+		client.C <- msg.Payload
+	}
 }

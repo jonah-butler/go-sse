@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -20,6 +21,13 @@ func CreateRedisClient() {
 	client = redis.NewClient(opt)
 }
 
-// func SubscribeToRedis(id string, ch chan string) {
-// 	pubsub := client.Subscribe()
-// }
+func CreatePubSubClient(ctx context.Context, id string) *redis.PubSub {
+	return client.Subscribe(ctx, id)
+}
+
+func PublishToRedis(ctx context.Context, id, data string) {
+	err := client.Publish(ctx, id, data).Err()
+	if err != nil {
+		log.Println("Failed to publish to redis: ", err.Error())
+	}
+}

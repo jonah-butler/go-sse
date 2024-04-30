@@ -1,6 +1,8 @@
 package event
 
 import (
+	"context"
+	r "go-sse/redis"
 	"net/http"
 	"strconv"
 	"time"
@@ -15,11 +17,13 @@ func setSSEHeaders(w http.ResponseWriter) {
 	w.Header().Set("Connection", "keep-alive")
 }
 
-func simulateLiveData(eventCh *chan string, id string) {
+func simulateLiveData(id string, ctx context.Context) {
 	loopCeil := 10
 
 	for i := 0; i < loopCeil; i++ {
 		time.Sleep(1 * time.Second)
-		*eventCh <- id + "-" + strconv.Itoa(i)
+		data := id + "-" + strconv.Itoa(i)
+
+		r.PublishToRedis(ctx, id, data)
 	}
 }

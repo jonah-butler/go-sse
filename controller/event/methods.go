@@ -31,19 +31,21 @@ func handleEventIndex(w http.ResponseWriter, r *http.Request) {
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		fmt.Println("sse not supported")
+		http.Error(w, "Failed to write data", http.StatusExpectationFailed)
 		return
 	}
 
-	ch := CONNECTIONS.AddClient(userId)
-	defer CONNECTIONS.RemoveClient(userId)
+	ch := CONNECTIONS.AddClient(ctx, userId)
+	go CONNECTIONS.ListenOnChannel(userId)
 
-	go simulateLiveData(ch, userId)
+	defer CONNECTIONS.RemoveClient(ctx, userId)
+
+	// simulate data being sent over a subscribed channel.
+	go simulateLiveData(userId, ctx)
 
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("connection cancelled")
 			return
 		case data := <-*ch:
 			user.Data = data
@@ -54,7 +56,7 @@ func handleEventIndex(w http.ResponseWriter, r *http.Request) {
 			}
 			_, err = fmt.Fprintf(w, "data: %s\n\n", string(d))
 			if err != nil {
-				fmt.Println("err writing daata: ", err.Error())
+				http.Error(w, "Failed to write data", http.StatusBadRequest)
 				return
 			}
 			flusher.Flush()

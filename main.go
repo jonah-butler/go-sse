@@ -2,7 +2,7 @@ package main
 
 import (
 	"go-sse/controller/event"
-	db "go-sse/redis"
+	r "go-sse/redis"
 	"log"
 	"net/http"
 
@@ -17,7 +17,7 @@ func main() {
 		panic("failed to initilize dot env")
 	}
 
-	db.CreateRedisClient()
+	r.CreateRedisClient()
 
 	mux := http.NewServeMux()
 
