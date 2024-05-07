@@ -10,8 +10,9 @@ import (
 )
 
 type ConnectionDetails struct {
-	C  chan string
-	PS *redis.PubSub
+	Channel     chan string
+	PubSub      *redis.PubSub
+	Connections int
 }
 
 type SSEConn struct {
@@ -29,17 +30,20 @@ func (conn *SSEConn) AddClient(ctx context.Context, id string) *chan string {
 	conn.M.Lock()
 	defer conn.M.Unlock()
 
-	c = conn.CD[id].C
-	if c == nil {
+	connectionDetails, ok := conn.CD[id]
+	if !ok {
 		c = make(chan string)
 
 		cd := ConnectionDetails{
-			C:  c,
-			PS: r.CreatePubSubClient(ctx, id),
+			Channel: c,
+			PubSub:  r.CreatePubSubClient(ctx, id),
 		}
 
-		conn.CD[id] = cd
+		connectionDetails = cd
 	}
+
+	connectionDetails.Connections++
+	conn.CD[id] = connectionDetails
 
 	return &c
 }
@@ -53,20 +57,24 @@ func (conn *SSEConn) RemoveClient(ctx context.Context, id string) {
 		return
 	}
 
-	if err := cd.PS.Unsubscribe(ctx); err != nil {
-		log.Fatal("failed to unsubscribe from pub sub channel")
-	}
-	if err := cd.PS.Close(); err != nil {
-		log.Fatal("failed to close pub sub channel")
-	}
+	cd.Connections -= 1
 
-	close(cd.C)
-	delete(conn.CD, id)
+	if cd.Connections == 0 {
+		if err := cd.PubSub.Unsubscribe(ctx); err != nil {
+			log.Fatal("failed to unsubscribe from pub sub channel")
+		}
+		if err := cd.PubSub.Close(); err != nil {
+			log.Fatal("failed to close pub sub channel")
+		}
+
+		close(cd.Channel)
+		delete(conn.CD, id)
+	}
 }
 
 func (conn *SSEConn) ListenOnChannel(id string) {
 	client := conn.CD[id]
-	for msg := range client.PS.Channel() {
-		client.C <- msg.Payload
+	for msg := range client.PubSub.Channel() {
+		client.Channel <- msg.Payload
 	}
 }

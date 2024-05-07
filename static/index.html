@@ -10,5 +10,22 @@
     <h1 class="data"></h1>
   </body>
 
-  <script src="/app.js"></script>
+  <script>
+    const es = new EventSource(
+      "http://127.0.0.1:6080/api/v1/profiles/8888/sse"
+    );
+
+    es.onopen = (...args) => {
+      console.log("event source opened...", args);
+    };
+
+    es.onmessage = (msg) => {
+      console.log("received message: ", msg);
+    };
+
+    es.onerror = (err) => {
+      console.log("got error: ", err);
+      es.close();
+    };
+  </script>
 </html>

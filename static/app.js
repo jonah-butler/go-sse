@@ -1,6 +1,4 @@
-const es = new EventSource(
-  "http://localhost:8080/event/sse?userId=" + Date.now()
-);
+const es = new EventSource("http://localhost:8080/event/sse?userId=771996");
 
 es.onopen = (...args) => {
   console.log("event source opened...", args);

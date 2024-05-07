@@ -45,8 +45,10 @@ func handleEventIndex(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		select {
+		// listen for closed connections
 		case <-ctx.Done():
 			return
+		// listen for data on user subscribed channel
 		case data := <-*ch:
 			user.Data = data
 			d, err := json.Marshal(user)
