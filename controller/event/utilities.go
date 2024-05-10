@@ -2,7 +2,6 @@ package event
 
 import (
 	"context"
-	r "go-sse/redis"
 	"net/http"
 	"strconv"
 	"time"
@@ -23,7 +22,6 @@ func simulateLiveData(id string, ctx context.Context) {
 	for i := 0; i < loopCeil; i++ {
 		time.Sleep(1 * time.Second)
 		data := id + "-" + strconv.Itoa(i)
-
-		r.PublishToRedis(ctx, id, data)
+		Broadcaster.Publish(ctx, id, data)
 	}
 }

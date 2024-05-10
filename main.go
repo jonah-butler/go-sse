@@ -9,7 +9,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const PORT = "8080"
+const PORT = "3000"
 
 func main() {
 

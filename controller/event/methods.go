@@ -1,28 +1,19 @@
 package event
 
 import (
-	"encoding/json"
 	"fmt"
 	"go-sse/sse"
 	"net/http"
 )
 
-var CONNECTIONS = sse.NewSSECon()
-
-type User struct {
-	Id   string `json:"id"`
-	Data string `json:"data"`
-}
+var Broadcaster = sse.NewBroadcaster()
 
 func handleEventIndex(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userId := r.URL.Query().Get("userId")
-	user := &User{
-		Id: userId,
-	}
+	userID := r.URL.Query().Get("userId")
 
-	if userId == "" {
+	if userID == "" {
 		http.Error(w, "User ID required", http.StatusBadRequest)
 		return
 	}
@@ -35,30 +26,24 @@ func handleEventIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ch := CONNECTIONS.AddClient(ctx, userId)
-	go CONNECTIONS.ListenOnChannel(userId)
-
-	defer CONNECTIONS.RemoveClient(ctx, userId)
+	subscriber := Broadcaster.Subscribe(ctx, userID)
+	defer Broadcaster.Unsubscribe(ctx, userID, subscriber)
 
 	// simulate data being sent over a subscribed channel.
-	go simulateLiveData(userId, ctx)
+	go simulateLiveData(userID, ctx)
 
 	for {
 		select {
-		// listen for closed connections
+
 		case <-ctx.Done():
+			fmt.Println("context closed")
 			return
-		// listen for data on user subscribed channel
-		case data := <-*ch:
-			user.Data = data
-			d, err := json.Marshal(user)
+
+		case data := <-subscriber.Channel:
+			fmt.Println("got data...")
+			_, err := fmt.Fprintf(w, "data: %s\n\n", data)
 			if err != nil {
-				http.Error(w, "Failed to marshal json", http.StatusBadRequest)
-				return
-			}
-			_, err = fmt.Fprintf(w, "data: %s\n\n", string(d))
-			if err != nil {
-				http.Error(w, "Failed to write data", http.StatusBadRequest)
+				http.Error(w, "failed to write data to channel(s): "+err.Error(), http.StatusBadRequest)
 				return
 			}
 			flusher.Flush()
