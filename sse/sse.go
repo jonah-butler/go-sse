@@ -87,8 +87,7 @@ func (b *Broadcaster) Broadcast(subscriber Subscriber) {
 
 	for message := range pubsub.Channel() {
 		b.M.Lock()
-		for i, sub := range b.S[subscriber.ID] {
-			fmt.Println(i)
+		for _, sub := range b.S[subscriber.ID] {
 			sub.Channel <- message.Payload
 		}
 		b.M.Unlock()
